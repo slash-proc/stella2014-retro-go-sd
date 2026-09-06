@@ -1,157 +1,169 @@
-# Retro-Go SD template — one project = one CORE or one GWHB homebrew.
+# Retro-Go SD — Atari 2600 (stella2014-go) standalone dynamic core.
 #
-#   make                  — build + pack (default: PROJECT_KIND=core)
-#   make PROJECT_KIND=homebrew
-#   make host             — Linux/macOS SDL binary (same src/main.c)
-#   make host HOST_SDL=3  — same with SDL3
-#   make docker           — same build inside Docker (no host toolchain)
-#   make docker_shell     — interactive shell in the builder image
+#   make                  — build + pack → stella2014.bin (+ stella2014_defprops.bin)
+#   make docker           — same inside the firmware builder image
+#   make host             — Linux/macOS SDL binary
 #
-# Customize CORE_NAME / pack metadata below, then replace src/main.c.
-# Verbose compiler lines: make V=
+# Memory: hot M6502/TIA/RIOT/System .text in ITCM; TIA FBs + PageAccess in
+# DTCM (fallback RAM_EMU). ITCM is not used for heap data. ROM properties
+# DB is appended inside stella2014.bin (STDP trailer) — no sidecar file.
+#
+# Host: ./stella2014_host path/to/game.a26   (needs stella2014.bin in cwd)
+# ROM dirname on SD stays a2600 (/roms/a2600/).
 
 #######################################
 # Project identity
 #######################################
-# core     → pack_core.py     → /cores/<name>.bin
-# homebrew → pack_homebrew.py → /homebrews/<name>.bin
 PROJECT_KIND ?= core
 
-CORE_NAME  := example
-CORE_ENTRY := app_main
+CORE_NAME  := stella2014
+CORE_ENTRY := app_main_a2600
+
+CORE_A2600 := src/stella2014-go
 
 CORE_C_SOURCES := \
-src/main.c
+$(CORE_A2600)/stella/src/emucore/DefPropsBin.c
 
-# Relative path so Docker bind-mounts work (do NOT use $(abspath) — it
-# bakes the host path into Make prerequisites / .d files). Do not name
-# this SDK_ROOT: that env var is commonly set by Android SDK installs.
+CORE_CXX_SOURCES := \
+src/main_a2600.cxx \
+$(CORE_A2600)/stella/src/common/StellaSound.cxx \
+$(CORE_A2600)/stella/src/emucore/Booster.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaCart.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart0840.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart2K.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart3E.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart3F.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart4A50.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart4K.cxx \
+$(CORE_A2600)/stella/src/emucore/Cart4KSC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartAR.cxx \
+$(CORE_A2600)/stella/src/emucore/CartBF.cxx \
+$(CORE_A2600)/stella/src/emucore/CartBFSC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartCM.cxx \
+$(CORE_A2600)/stella/src/emucore/CartCTY.cxx \
+$(CORE_A2600)/stella/src/emucore/CartCV.cxx \
+$(CORE_A2600)/stella/src/emucore/CartDF.cxx \
+$(CORE_A2600)/stella/src/emucore/CartDFSC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartDPC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartDPCPlus.cxx \
+$(CORE_A2600)/stella/src/emucore/CartE0.cxx \
+$(CORE_A2600)/stella/src/emucore/CartE7.cxx \
+$(CORE_A2600)/stella/src/emucore/CartEF.cxx \
+$(CORE_A2600)/stella/src/emucore/CartEFSC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF0.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF4.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF4SC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF6.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF6SC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF8.cxx \
+$(CORE_A2600)/stella/src/emucore/CartF8SC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartFA.cxx \
+$(CORE_A2600)/stella/src/emucore/CartFA2.cxx \
+$(CORE_A2600)/stella/src/emucore/CartFE.cxx \
+$(CORE_A2600)/stella/src/emucore/CartMC.cxx \
+$(CORE_A2600)/stella/src/emucore/CartSB.cxx \
+$(CORE_A2600)/stella/src/emucore/CartUA.cxx \
+$(CORE_A2600)/stella/src/emucore/CartX07.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaConsole.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaControl.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaJoystick.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaM6502.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaM6532.cxx \
+$(CORE_A2600)/stella/src/emucore/NullDev.cxx \
+$(CORE_A2600)/stella/src/emucore/Random.cxx \
+$(CORE_A2600)/stella/src/emucore/Serializer.cxx \
+$(CORE_A2600)/stella/src/emucore/StateManager.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaMD5.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaSettings.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaSwitches.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaSystem.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaTIA.cxx \
+$(CORE_A2600)/stella/src/emucore/TIATables.cxx \
+$(CORE_A2600)/stella/src/emucore/TIASnd.cxx \
+$(CORE_A2600)/stella/src/emucore/Driving.cxx \
+$(CORE_A2600)/stella/src/emucore/MindLink.cxx \
+$(CORE_A2600)/stella/src/emucore/Paddles.cxx \
+$(CORE_A2600)/stella/src/emucore/TrackBall.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaGenesis.cxx \
+$(CORE_A2600)/stella/src/emucore/StellaKeyboard.cxx
+
+CORE_C_INCLUDES := \
+-I$(CORE_A2600)/stella \
+-I$(CORE_A2600)/stella/src \
+-I$(CORE_A2600)/stella/stubs \
+-I$(CORE_A2600)/stella/src/emucore \
+-I$(CORE_A2600)/stella/src/common \
+-I$(CORE_A2600)/stella/src/gui \
+-Isrc
+
+CORE_LDSCRIPT := stella2014_core.ld
+CORE_EXTRA_SEGMENTS := itcm:core_itcm
+
+# Stella needs std::string (bspf.hxx).
+CORE_LDLIBS := -lstdc++
+
 GNW_CORE_SDK ?= sdk
-# Separate build trees so switching PROJECT_KIND does not reuse stale .o.
 BUILD_DIR ?= build/$(PROJECT_KIND)
-
-#######################################
-# SDK bridge overrides (optional)
-#######################################
-# The SDK bridge (gw_core_bridge.c) provides default implementations for
-# memcpy/memset/memmove/__aeabi_mem* and malloc/calloc/free/realloc.
-# Define these to exclude the SDK versions and supply your own:
-#
-#   GW_CORE_BRIDGE_DISABLE_SDK_MEMCPY — exclude memcpy only.
-#       Memmove stays routed through the SDK bridge (Doom/fastmem needs it).
-#
-#   GW_CORE_BRIDGE_DISABLE_SDK_MEMSET — exclude memset only.
-#
-#   GW_CORE_BRIDGE_DISABLE_SDK_MEMMOVE — exclude memmove too (requires your
-#       core to provide memmove).
-#
-#   GW_CORE_BRIDGE_DISABLE_SDK_MEMOPS — back-compat: exclude the full memops
-#       block (memcpy/memset/memmove + all __aeabi_mem* helpers).
-#
-#   GW_CORE_BRIDGE_DISABLE_SDK_MALLOC — exclude the malloc/calloc/free/
-#       realloc wrappers that forward to the firmware ABI heap. Use this when
-#       the core links its own allocator or needs a custom malloc/free path.
-#
-# To enable, add the define(s) to CORE_C_DEFS below, e.g.:
-#   CORE_C_DEFS += -DGW_CORE_BRIDGE_DISABLE_SDK_MEMCPY
-#   CORE_C_DEFS += -DGW_CORE_BRIDGE_DISABLE_SDK_MEMSET
-#   CORE_C_DEFS += -DGW_CORE_BRIDGE_DISABLE_SDK_MALLOC
 
 #######################################
 # Kind-specific compile defs + packing
 #######################################
 ifeq ($(PROJECT_KIND),core)
-# Match release-firmware layout of retro_emulator_file_t: COVERFLOW fields
-# sit before cheat_* — CHEAT_CODES alone with COVERFLOW=0 misaligns pointers.
-# MAX_CHEAT_CODES mirrors Makefile.common's release default.
 CORE_C_DEFS := \
 -DPROJECT_KIND_CORE=1 \
 -DCOVERFLOW=1 \
--DCHEAT_CODES=1 \
--DMAX_CHEAT_CODES=13
+-DCHEAT_CODES=0 \
+-DTARGET_GNW
 
 PACKED_BIN  := $(CORE_NAME).bin
-PAD_LOGO    := src/assets/pad.png
-HEADER_LOGO := src/assets/header.png
+PAD_LOGO    := src/assets/pad.bmp
+HEADER_LOGO := src/assets/header.bmp
 
 else ifeq ($(PROJECT_KIND),homebrew)
-CORE_C_DEFS := \
--DPROJECT_KIND_HOMEBREW=1
-
-PACKED_BIN := ExampleHB.bin
-HB_NAME    := Example Homebrew
-# Compact coverflow tile (HW max is 186x100 — do not use full width by default).
-COVER_JPG    := $(BUILD_DIR)/cover.jpg
-COVER_WIDTH  ?= 128
-COVER_HEIGHT ?= 96
-
+$(error Atari 2600 is a dynamic core only — use PROJECT_KIND=core)
 else
-$(error PROJECT_KIND must be 'core' or 'homebrew' (got '$(PROJECT_KIND)'))
+$(error PROJECT_KIND must be 'core' (got '$(PROJECT_KIND)'))
 endif
 
 include $(GNW_CORE_SDK)/Makefile
 
-PACK_CORE     := $(GNW_CORE_SDK)/tools/pack_core.py
-PACK_HOMEBREW := $(GNW_CORE_SDK)/tools/pack_homebrew.py
-GEN_COVER     := scripts/gen_homebrew_cover.py
+PACK_CORE := $(GNW_CORE_SDK)/tools/pack_core.py
+APPEND_DEFPROPS := scripts/append_stella_defprops.py
+DEFPROPS_BIN := $(BUILD_DIR)/stella2014_defprops.bin
+DEFPROPS_SRC := $(CORE_A2600)/stella/src/emucore/DefProps.hxx
+CONVERT_DEFPROPS := $(CORE_A2600)/convert_defprops.py
 
 #######################################
 # Packed header version
 #######################################
-# gnw_core_meta_t / gwhb_meta_t only store major.minor.patch (0..255).
-# CORE_VERSION is the full git describe string passed to the packers; they
-# extract the leading vX.Y.Z (NOTAG / missing tags → 0.0.0).
-# Override: make CORE_VERSION=v1.2.3
 CORE_VERSION ?= $(shell git describe --tags --dirty 2>/dev/null || echo NOTAG)
 
 #######################################
 # Pack
 #######################################
-.PHONY: pack cover
+.PHONY: pack defprops
 
-ifeq ($(PROJECT_KIND),core)
+defprops: $(DEFPROPS_BIN)
 
-pack: $(TARGET_BIN) $(PAD_LOGO) $(HEADER_LOGO)
+$(DEFPROPS_BIN): $(DEFPROPS_SRC) $(CONVERT_DEFPROPS) | $(BUILD_DIR)
+	$(V)$(ECHO) [ DEFPROPS ] $@
+	$(V)python3 $(CONVERT_DEFPROPS) $(DEFPROPS_SRC) $@
+
+pack: $(TARGET_BIN) $(PAD_LOGO) $(HEADER_LOGO) $(DEFPROPS_BIN)
 	$(V)$(ECHO) [ PACK CORE ] $(PACKED_BIN) version=$(CORE_VERSION)
 	$(V)python3 $(PACK_CORE) \
 		--elf $(TARGET_ELF) --bin $(TARGET_BIN) \
-		--system-name "Example Core" --dirname example \
-		--extensions "bin" \
-		--core-name "Example" \
+		--system-name "Atari 2600" --dirname a2600 \
+		--extensions "a26 bin" \
+		--core-name "Stella 2014" \
 		--version "$(CORE_VERSION)" \
-		--cheat-ext ggcodes \
 		--pad-logo $(PAD_LOGO) \
 		--header-logo $(HEADER_LOGO) \
 		--out $(PACKED_BIN)
-
-else
-
-.PHONY: cover
-cover: $(COVER_JPG)
-
-# Must stay ≤ gui.c COVER_MAX_WIDTH x COVER_MAX_HEIGHT (186x100) and
-# COVER_SIZE (10 KiB) — oversized covers smash the HW JPEG scratch.
-$(COVER_JPG): $(GEN_COVER)
-	$(V)$(ECHO) [ COVER ] $(COVER_JPG) ($(COVER_WIDTH)x$(COVER_HEIGHT))
-	$(V)python3 $(GEN_COVER) \
-		--out $(COVER_JPG) \
-		--title "$(HB_NAME)" \
-		--width $(COVER_WIDTH) \
-		--height $(COVER_HEIGHT)
-
-pack: $(TARGET_BIN) $(COVER_JPG)
-	$(V)$(ECHO) [ PACK GWHB ] $(PACKED_BIN) version=$(CORE_VERSION)
-	$(V)python3 $(PACK_HOMEBREW) \
-		--elf $(TARGET_ELF) --bin $(TARGET_BIN) \
-		--name "$(HB_NAME)" --version "$(CORE_VERSION)" \
-		--cover $(COVER_JPG) \
-		--out $(PACKED_BIN)
-
-endif
+	$(V)python3 $(APPEND_DEFPROPS) --core $(PACKED_BIN) --defprops $(DEFPROPS_BIN)
 
 all: pack
 
-# Read-only helpers for CI / scripts (make print-PROJECT_KIND, etc.).
 .PHONY: print-PROJECT_KIND print-PACKED_BIN print-CORE_NAME print-DOCKER_IMAGE \
 	print-TARGET_ELF print-TARGET_MAP print-CORE_VERSION
 print-PROJECT_KIND:
@@ -171,12 +183,9 @@ print-CORE_VERSION:
 
 clean::
 	$(V)rm -f $(PACKED_BIN)
-ifeq ($(PROJECT_KIND),homebrew)
-	$(V)rm -f $(COVER_JPG)
-endif
 
 #######################################
-# Docker (same image as firmware repo)
+# Docker
 #######################################
 .PHONY: docker docker_pull docker_shell
 
@@ -185,7 +194,6 @@ DOCKER_REPOSITORY ?= sylverb/retro-go-sd-builder
 DOCKER_IMAGE ?= $(DOCKER_REPOSITORY):$(RELEASE_VERSION)
 
 DOCKER_TTY_FLAG := $(shell if [ -t 0 ]; then echo -it; else echo; fi)
-# Host UID so build/ artifacts are not root-owned on the bind mount.
 DOCKER_USER := $(shell id -u):$(shell id -g)
 DOCKER_RUN := docker run --rm $(DOCKER_TTY_FLAG) \
 	--user $(DOCKER_USER) \
@@ -193,8 +201,6 @@ DOCKER_RUN := docker run --rm $(DOCKER_TTY_FLAG) \
 	-w /opt/workdir \
 	$(DOCKER_IMAGE)
 
-# Compile inside the published builder image (uses the local copy).
-# Refresh with `make docker_pull` when you want a newer digest for the tag.
 docker:
 	$(V)$(ECHO) "[ DOCKER ]" $(DOCKER_IMAGE) "PROJECT_KIND=$(PROJECT_KIND)"
 	$(V)$(DOCKER_RUN) make --no-print-directory -j$$(nproc) PROJECT_KIND=$(PROJECT_KIND)
@@ -203,7 +209,6 @@ docker_pull:
 	$(V)$(ECHO) "[ PULL ]" $(DOCKER_IMAGE)
 	$(V)docker pull $(DOCKER_IMAGE)
 
-# Interactive shell with the same image / mount as `make docker`.
 docker_shell:
 	$(DOCKER_RUN) bash
 
