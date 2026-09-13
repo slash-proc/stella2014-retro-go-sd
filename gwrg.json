@@ -2,7 +2,11 @@
   "systems": {
     "a2600": {
       "shortName": "A2600",
-      "compression": false
+      "compression": false,
+      "runtime": {
+        "savestate": { "supported": true },
+        "save": { "supported": false }
+      }
     }
   }
 }
